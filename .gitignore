@@ -1,0 +1,12 @@
+node_modules/
+*.tgz
+.tmp-npm-cache/
+.env
+.env.*
+*.log
+.dshw-*.json
+dsh-whale-pricing.json
+dsh-whale-dialogues.json
+dsh-whale-conversations.json
+Thumbs.db
+.DS_Store

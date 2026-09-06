@@ -1,7 +1,7 @@
 {
   "name": "dsh-whale-widget",
-  "version": "0.2.10",
-  "description": "DSH Web 界面右下角的 DeepSeek 余额小鲸鱼挂件（含今日已用、峰谷定价、随机台词、音效与每轮消耗统计）",
+  "version": "0.8.0",
+  "description": "DSH Web 小鲸鱼挂件：余额、分会话用量、峰谷价格与可自定义互动台词",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -11,21 +11,41 @@
   ],
   "type": "module",
   "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client/session-bridge.js",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "node --check lib/index.js && node --check lib/config.js && node --check lib/pricing.js && node --check lib/pricing-store.js && node --check lib/dialogues.js && node --check lib/dialogue-store.js && node --check lib/conversation-usage.js && node --check client/widget.js && node --check client/session-bridge.js",
+    "test": "node --test --experimental-test-isolation=none tests/*.test.js"
+  },
   "files": [
     "lib",
+    "client",
     "assets",
+    "pricing.example.json",
     "cordis.patch.yml",
     "README.md"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget.git"
+    "url": "git+https://github.com/nanh22651-sudo/DeepSeek-Balance-Whale-Widget.git"
   },
   "bugs": {
-    "url": "https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues"
+    "url": "https://github.com/nanh22651-sudo/DeepSeek-Balance-Whale-Widget/issues"
   },
-  "homepage": "https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget#readme",
+  "homepage": "https://github.com/nanh22651-sudo/DeepSeek-Balance-Whale-Widget#readme",
   "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-session-controller"
+      ],
+      "platform": "web"
+    },
     "bundle": {
       "patch": "./cordis.patch.yml"
     }

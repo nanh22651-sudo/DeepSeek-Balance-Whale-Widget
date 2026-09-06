@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "currency": "CNY",
+  "verifiedAt": "2026-09-05",
+  "peakSchedule": {
+    "timezone": "Asia/Shanghai",
+    "weekdays": [[9, 12], [14, 18]],
+    "weekendOffPeakFrom": "2026-08-23T00:00:00+08:00"
+  },
+  "models": {
+    "deepseek-v4-flash-vision-exp": {
+      "aliases": [],
+      "cacheHit": { "offPeak": 0.05, "peak": 0.1 },
+      "cacheMiss": { "offPeak": 1.5, "peak": 3.0 },
+      "output": { "offPeak": 4.5, "peak": 9.0 }
+    },
+    "deepseek-v4-flash": {
+      "aliases": ["deepseek-chat", "deepseek-reasoner"],
+      "cacheHit": { "offPeak": 0.05, "peak": 0.1 },
+      "cacheMiss": { "offPeak": 1.5, "peak": 3.0 },
+      "output": { "offPeak": 4.5, "peak": 9.0 }
+    },
+    "deepseek-v4-pro": {
+      "aliases": [],
+      "cacheHit": { "offPeak": 0.15, "peak": 0.3 },
+      "cacheMiss": { "offPeak": 4.5, "peak": 9.0 },
+      "output": { "offPeak": 13.5, "peak": 27.0 }
+    }
+  }
+}
