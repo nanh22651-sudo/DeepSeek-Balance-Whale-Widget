@@ -104,6 +104,16 @@ dsh plugin --profile web add link:.
 - 安装完成后重启 `dsh web`，再 F5 刷新浏览器
 - **如果之后移动了源码目录**，必须重新执行一次 `dsh plugin --profile web add link:.<新路径>`。若提示已存在/冲突，先 `dsh plugin --profile web remove dsh-whale-widget` 再重新 add
 
+### DeepSeek Harness Desktop 0.2.0 及以上
+
+Desktop 使用独立的 `desktop` profile，不能复用 `web` profile 中已经安装的插件。完全退出 Desktop 后，使用安装目录内置的 `dsh.cmd` 安装；例如：
+
+```cmd
+"D:\tools\DeepSeekHarness\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add link:D:\你的路径\DeepSeek-Balance-Whale-Widget
+```
+
+重新启动 Desktop 后，标准 `dsh.client` 入口会负责加载挂件；浏览器版仍保留原来的 Web 注入入口。Desktop 与 Web profile 共用 `$DSH_HOME` 下的凭据、价格、台词和用量数据，但各自维护插件依赖与启用列表。
+
 ### 方式 C：发布到 npm 后安装
 
 ```powershell
@@ -298,7 +308,7 @@ curl http://127.0.0.1:3080/dsh-whale/dialogues.json
 
 ## 常见问题
 
-- **挂件不出现**：确认 `dsh plugin add` 成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget`；重启 `dsh web` 后 F5。
+- **挂件不出现**：浏览器版确认 `dsh --profile web --dump-config` 里能看到 `dsh-whale-widget`，重启 `dsh web` 后 F5；Desktop 版确认插件安装在 `desktop` 而不是 `web` profile，并使用 v0.8.1 或更高版本。
 - **图片不显示**：确认 `assets/DSniang1.png` 在插件包内，且没有把旧文件放在 profile 里占用了同名路由。
 - **余额报「未配置 DEEPSEEK_API_KEY」**：去 DSH 配置凭据。
 - **今日已用显示 --**：记账模式下需要先跑一次余额观测（60 秒内自动完成）；令牌模式需要配置 `DEEPSEEK_PLATFORM_TOKEN`。
@@ -320,7 +330,7 @@ npm run check
 npm test
 ```
 
-安全说明：余额、对话用量、实时事件和设置接口仅接受本机回环地址上的同源访问，不向第三方网页开放 CORS。设置写入会校验字段类型和范围；挂件仍可通过同源 DSH Web 页面正常访问这些接口。若明确通过反向代理或自定义域名使用，可把允许的完整 origin（多个值用逗号分隔）配置到 `DSH_WHALE_ALLOWED_ORIGINS`。
+安全说明：余额、对话用量、实时事件和设置接口仅接受本机回环地址上的同源访问，以及指向本机回环 Host 的固定 Desktop 来源 `dsh-app://app`；不向第三方网页或其他自定义协议来源开放。设置写入会校验字段类型和范围。若明确通过反向代理或自定义域名使用，可把允许的完整 origin（多个值用逗号分隔）配置到 `DSH_WHALE_ALLOWED_ORIGINS`。
 
 ## 许可证
 

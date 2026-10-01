@@ -1,6 +1,6 @@
 {
   "name": "dsh-whale-widget",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "DSH Web 小鲸鱼挂件：余额、分会话用量、峰谷价格与可自定义互动台词",
   "keywords": [
     "dsh",

@@ -1,7 +1,20 @@
-import test from 'node:test'
+import { after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
-import { apply, name } from '../lib/index.js'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+const originalDshHome = process.env.DSH_HOME
+const testDshHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-whale-plugin-test-'))
+process.env.DSH_HOME = testDshHome
+const { apply, name } = await import('../lib/index.js?plugin-test-isolated-home')
+
+after(() => {
+  if (originalDshHome === undefined) delete process.env.DSH_HOME
+  else process.env.DSH_HOME = originalDshHome
+  fs.rmSync(testDshHome, { recursive: true, force: true })
+})
 
 function responseRecorder() {
   return {
@@ -62,13 +75,22 @@ test('plugin registers its routes and injects the browser script', async () => {
   assert.match(String(res.body), /window\.__dshWhaleWidget/)
 })
 
+test('client module starts and disposes the widget for packaged Desktop pages', () => {
+  const source = fs.readFileSync(new URL('../client/session-bridge.js', import.meta.url), 'utf8')
+  assert.match(source, /WIDGET_SCRIPT_URL = '\/dsh-whale\/widget\.js'/)
+  assert.match(source, /ensureWidgetScript\(\)/)
+  assert.match(source, /document\.head\.appendChild\(script\)/)
+  assert.match(source, /window\.__dshWhaleWidgetDispose\(\)/)
+  assert.match(source, /dshWhaleOwned === 'true'/)
+})
+
 test('quick chat prepares dialogue before opening a closed bubble', async () => {
   const ctx = createContext()
   apply(ctx)
   const res = responseRecorder()
   await ctx.routes.get('/dsh-whale/widget.js')(request('GET'), res)
   const source = String(res.body)
-  const match = /function showDialogueLines\([\s\S]*?\n}\nfunction applyBubbleLines/.exec(source)
+  const match = /function showDialogueLines\([\s\S]*?\r?\n}\r?\nfunction applyBubbleLines/.exec(source)
   assert.ok(match)
   assert.doesNotMatch(match[0], /showBubble\(/)
   assert.ok(match[0].indexOf('applyBubbleLines(bubbleRandomLines)') < match[0].indexOf("bubbleBox.classList.add('dshwv-bubble-open')"))
@@ -88,6 +110,8 @@ test('widget exposes independent bubble durations and removes the peak wording s
   assert.match(source, /setTimeout\(hideCostBubble, costBubbleCloseMs\)/)
   assert.match(source, /showDialogueLines\(pickDialogueLines\(\), dialogueBubbleCloseMs\)/)
   assert.doesNotMatch(source, /peakSelect|peakMode|梁文峰谷|强强/)
+  assert.match(source, /window\.__dshWhaleWidgetDispose = disposeWhaleWidget/)
+  assert.match(source, /document\.removeEventListener\('pointerdown', onDocPointerDown, true\)/)
 })
 
 test('pricing route is same-origin protected and exposes editor metadata', async () => {

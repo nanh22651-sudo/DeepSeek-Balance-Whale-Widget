@@ -2,6 +2,36 @@
 if (window.__dshWhaleWidget) return
 window.__dshWhaleWidget = true
 
+// Keep timers owned by this widget so a Client-module refresh can dispose the
+// old instance cleanly before the replacement is materialized.
+var nativeSetTimeout = window.setTimeout.bind(window)
+var nativeClearTimeout = window.clearTimeout.bind(window)
+var nativeSetInterval = window.setInterval.bind(window)
+var nativeClearInterval = window.clearInterval.bind(window)
+var ownedTimeouts = new Set()
+var ownedIntervals = new Set()
+function setTimeout(handler, delay) {
+  var id = nativeSetTimeout(function () {
+    ownedTimeouts.delete(id)
+    handler()
+  }, delay)
+  ownedTimeouts.add(id)
+  return id
+}
+function clearTimeout(id) {
+  ownedTimeouts.delete(id)
+  nativeClearTimeout(id)
+}
+function setInterval(handler, delay) {
+  var id = nativeSetInterval(handler, delay)
+  ownedIntervals.add(id)
+  return id
+}
+function clearInterval(id) {
+  ownedIntervals.delete(id)
+  nativeClearInterval(id)
+}
+
 var MIN_SCALE = 0.6
 var MAX_SCALE = 2.5
 var STEP = 0.1
@@ -2025,10 +2055,11 @@ function applyAnchorPos() {
     return true
   } catch (err) { return false }
 }
-window.addEventListener('resize', function () {
+function onWindowResize() {
   if (state.h === null && state.v === null && applyAnchorPos()) return
   settle()
-})
+}
+window.addEventListener('resize', onWindowResize)
 
 var rect0 = root.getBoundingClientRect()
 state.left = rect0.left
@@ -2209,15 +2240,42 @@ function connectUsageStream() {
     }
   } catch (err) {}
 }
-window.addEventListener('dsh-whale-session-change', function (event) {
+function onWhaleSessionChange(event) {
   var detail = event && event.detail
   var next = detail && typeof detail.sessionId === 'string' ? detail.sessionId : ''
   if (next === currentSessionId) return
   currentSessionId = next
   connectUsageStream()
-})
+}
+window.addEventListener('dsh-whale-session-change', onWhaleSessionChange)
 setInterval(function () {
   if (!usageEventSource || usageEventSource.readyState !== 1) pollUsage()
 }, 15000)
 connectUsageStream()
+
+function disposeWhaleWidget() {
+  if (!window.__dshWhaleWidget) return
+  for (var timeoutId of ownedTimeouts) nativeClearTimeout(timeoutId)
+  for (var intervalId of ownedIntervals) nativeClearInterval(intervalId)
+  ownedTimeouts.clear()
+  ownedIntervals.clear()
+  if (usageEventSource) { usageEventSource.close(); usageEventSource = null }
+  window.removeEventListener('resize', onWindowResize)
+  window.removeEventListener('dsh-whale-session-change', onWhaleSessionChange)
+  document.removeEventListener('pointerdown', onDocPointerDown, true)
+  document.removeEventListener('click', onDocClickStopper, true)
+  document.removeEventListener('pointermove', onDocPointerMoveCursor, true)
+  document.removeEventListener('pointermove', onDocPointerMove, true)
+  document.removeEventListener('pointerup', onDocPointerUp, true)
+  document.removeEventListener('pointercancel', onDocPointerCancel, true)
+  if (animId) { try { cancelAnimationFrame(animId) } catch (err) {}; animId = null }
+  setWidgetCursor('')
+  try { root.remove() } catch (err) {}
+  try { menuBox.remove() } catch (err) {}
+  try { pricingModal.remove() } catch (err) {}
+  try { styleEl.remove() } catch (err) {}
+  delete window.__dshWhaleWidget
+  if (window.__dshWhaleWidgetDispose === disposeWhaleWidget) delete window.__dshWhaleWidgetDispose
+}
+window.__dshWhaleWidgetDispose = disposeWhaleWidget
 })()
