@@ -21,7 +21,8 @@
   },
   "scripts": {
     "check": "node --check lib/index.js && node --check lib/config.js && node --check lib/pricing.js && node --check lib/pricing-store.js && node --check lib/dialogues.js && node --check lib/dialogue-store.js && node --check lib/conversation-usage.js && node --check client/widget.js && node --check client/session-bridge.js",
-    "test": "node --test --experimental-test-isolation=none tests/*.test.js"
+    "test": "node --test --experimental-test-isolation=none tests/*.test.js",
+    "test:ui": "playwright test"
   },
   "files": [
     "lib",
@@ -50,5 +51,8 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
 }
