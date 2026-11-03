@@ -66,7 +66,7 @@ test('plugin registers its routes and injects the browser script', async () => {
   const ctx = createContext()
   apply(ctx)
   assert.equal(name, 'dsh-whale-widget')
-  assert.equal(ctx.routes.size, 12)
+  assert.equal(ctx.routes.size, 14)
   assert.match(ctx.indexTransform('<body></body>'), /\/dsh-whale\/widget\.js/)
 
   const res = responseRecorder()
@@ -75,6 +75,40 @@ test('plugin registers its routes and injects the browser script', async () => {
   assert.match(String(res.body), /window\.__dshWhaleWidget/)
 })
 
+test('portrait routes serve only their packaged PNG and reject writes', () => {
+  const ctx = createContext()
+  apply(ctx)
+  for (const [route, file] of [
+    ['image.png', 'DSniang1.png'], ['face-closed.png', 'face-closed.png'], ['face-smile.png', 'face-smile.png'],
+  ]) {
+    const handler = ctx.routes.get('/dsh-whale/' + route)
+    const res = responseRecorder()
+    handler(request('GET'), res)
+    assert.equal(res.status, 200)
+    assert.equal(res.headers['Content-Type'], 'image/png')
+    assert.equal(res.body.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
+    assert.deepEqual(res.body, fs.readFileSync(new URL('../assets/' + file, import.meta.url)))
+    const denied = responseRecorder()
+    handler(request('PUT'), denied)
+    assert.equal(denied.status, 405)
+  }
+})
+
+test('missing expression has a clean 404 while the original whale remains available', (t) => {
+  const ctx = createContext()
+  apply(ctx)
+  const read = fs.readFileSync
+  t.mock.method(fs, 'readFileSync', (file, ...options) => {
+    if (typeof file === 'string' && path.basename(file) === 'face-closed.png') throw Error('missing test file')
+    return read(file, ...options)
+  })
+  const response = responseRecorder()
+  ctx.routes.get('/dsh-whale/face-closed.png')(request('GET'), response)
+  assert.equal(response.status, 404)
+  assert.equal(response.body, 'whale image unavailable')
+  ctx.routes.get('/dsh-whale/image.png')(request('GET'), response)
+  assert.equal(response.status, 200)
+})
 
 test('pricing route is same-origin protected and exposes editor metadata', async () => {
   const ctx = createContext()

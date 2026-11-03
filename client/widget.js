@@ -53,8 +53,8 @@ var css = [
   '.dshwv-root{position:fixed;right:0;bottom:0;--dshw-scale:1;--dshw-base:clamp(122px,calc(min(250px,min(100vw,100vh) * 0.28) * var(--dshw-scale)),625px);width:var(--dshw-base);height:var(--dshw-base);pointer-events:none;user-select:none;-webkit-user-select:none;z-index:9999;font-family:inherit;transition:left .16s ease,top .16s ease,transform .3s ease}',
   '.dshwv-root.dshwv-left{transform:scaleX(-1)}',
   '.dshwv-root.dshwv-dragging{cursor:grabbing;transition:none}',
-  '.dshwv-body{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 100%;transition:transform .22s cubic-bezier(.34,1.56,.64,1)}',
-  '.dshwv-img{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;pointer-events:none;-webkit-user-drag:none;user-select:none}',
+  '.dshwv-body{position:absolute;left:0;top:0;width:100%;height:100%}',
+  WHALE_CHARACTER_CSS,
   '.dshwv-bubble{position:absolute;left:0;top:0;width:100%;aspect-ratio:1026/700;pointer-events:none;z-index:1;--dshw-u:calc(var(--dshw-base) / 1026)}',
   '.dshwv-bubble svg{display:block;width:100%;height:100%;pointer-events:none}',
   '.dshwv-bubble svg path,.dshwv-bubble svg ellipse{pointer-events:none;cursor:pointer}',
@@ -149,11 +149,7 @@ document.head.appendChild(styleEl)
 var root = document.createElement('div')
 root.className = 'dshwv-root'
 
-var img = document.createElement('img')
-img.className = 'dshwv-img'
-img.src = IMG_URL
-img.alt = 'DeepSeek 余额'
-img.draggable = false
+var character = createWhaleCharacter({ imageUrl: IMG_URL, setTimeout, clearTimeout })
 
 var menuBtn = document.createElement('button')
 menuBtn.type = 'button'
@@ -533,7 +529,7 @@ var bubble = createWhaleBubble({
 
 var body = document.createElement('div')
 body.className = 'dshwv-body'
-body.appendChild(img)
+body.appendChild(character.element)
 body.appendChild(bubble.element)
 root.appendChild(body)
 root.appendChild(quickChatBtn)
@@ -630,7 +626,7 @@ function interpolateDialogue(text) {
   var values = dialogueTemplateValues()
   return String(text || '').replace(/\{(balance|todayUsage|sessionUsage|timeBand|nextChange|model)\}/g, function (_, key) { return values[key] })
 }
-function pickDialogueLines() {
+function pickDialogue() {
   var chances = dialogueChance()
   var roll = Math.random()
   var bucket = roll < chances.rare ? 'rare' : (roll < chances.rare + chances.special ? 'special' : 'normal')
@@ -638,14 +634,16 @@ function pickDialogueLines() {
   var eligible = all.filter(function (entry) { return entry.enabled && entry.rarity === bucket && dialogueCategoryEligible(entry.category) })
   if (!eligible.length) eligible = all.filter(function (entry) { return entry.enabled && entry.rarity === 'normal' && dialogueCategoryEligible(entry.category) })
   if (!eligible.length) eligible = all.filter(function (entry) { return entry.enabled && dialogueCategoryEligible(entry.category) })
-  var selected = weightedDialogue(eligible)
-  return singleCenter('A', selected ? interpolateDialogue(selected.text) : '今天暂时没有可以说的台词。', '', true)
+  return weightedDialogue(eligible)
 }
 function showDialogue() {
-  if (bubbleOn) bubble.showDialogue(pickDialogueLines(), dialogueBubbleCloseMs)
+  if (!bubbleOn) return
+  const entry = pickDialogue()
+  showDialogueText(entry ? interpolateDialogue(entry.text) : '今天暂时没有可以说的台词。', entry && entry.id)
 }
-function showDialogueText(text) {
-  if (bubbleOn) bubble.showDialogue(singleCenter('A', text, '', true), dialogueBubbleCloseMs)
+function showDialogueText(text, id) {
+  bubble.showDialogue(singleCenter('A', text, '', true), dialogueBubbleCloseMs)
+  character.dialogue(id)
 }
 function showBubble() {
   if (bubbleOn) bubble.showBalance(balanceBubbleCloseMs)
@@ -1146,8 +1144,8 @@ function previewDialogueEntry(row) {
   if (!text) { dialogueError.textContent = '请先输入台词内容。'; return }
   if (!bubbleOn) { dialogueError.textContent = '请先在菜单中开启气泡，再预览台词。'; return }
   pricingModal.classList.remove('dshwv-modal-open')
-  showDialogueText(interpolateDialogue(text))
-    setTimeout(function () { pricingModal.classList.add('dshwv-modal-open') }, Math.min(3500, dialogueBubbleCloseMs || 3500))
+  showDialogueText(interpolateDialogue(text), row.id)
+  setTimeout(function () { pricingModal.classList.add('dshwv-modal-open') }, Math.min(3500, dialogueBubbleCloseMs || 3500))
 }
 function importDialogues() {
   dialogueFileInput.value = ''
@@ -1484,7 +1482,6 @@ function setSoundSet(v) {
   applySoundSet()
   saveConfig()
 }
-var SQUISH = 'scaleY(0.88) scaleX(1.05)'
 var pressAudio = null
 var releaseAudio = null
 var pressing = false
@@ -1532,12 +1529,12 @@ function playRelease() {
   } catch (err) {}
 }
 function pressDown() {
-  body.style.transform = SQUISH
+  character.setHeld(true)
   pressing = true
   playPress()
 }
 function pressUp() {
-  body.style.transform = 'scaleY(1) scaleX(1)'
+  character.setHeld(false)
   pressing = false
   if (pressEnded) {
     // hold (or released after Ya1 finished) → Ya2 now
@@ -1659,10 +1656,10 @@ function setupHitTest() {
   } catch (err) {}
 }
 function isWhaleHit(e) {
+  var r = character.element.getBoundingClientRect()
+  if (r.width <= 0 || r.height <= 0 || e.clientX < r.left || e.clientX >= r.right || e.clientY < r.top || e.clientY >= r.bottom) return false
   if (!hitCanvas || !hitReady) return true
   try {
-    var r = img.getBoundingClientRect()
-    if (!r || r.width <= 0 || r.height <= 0) return false
     var lx = (e.clientX - r.left) / r.width * 610
     var ly = (e.clientY - r.top) / r.height * 610
     if (lx < 0 || ly < 0 || lx >= 610 || ly >= 610) return false
@@ -1735,12 +1732,14 @@ function onDocPointerMoveCursor(e) {
   var el = null
   try { el = document.elementFromPoint(e.clientX, e.clientY) } catch (err) {}
   if (el && el.closest && (el.closest('.dshwv-bubble') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-chat-btn') || el.closest('.dshwv-modal'))) {
+    character.setHover(false)
     setWidgetCursor('')
     menuBtn.classList.add('dshwv-menu-btn-visible')
     quickChatBtn.classList.add('dshwv-chat-btn-visible')
     return
   }
   var over = isWhaleHit(e)
+  character.setHover(over && e.pointerType !== 'touch' && !menuOpen)
   setWidgetCursor(over ? 'grab' : '')
   menuBtn.classList.toggle('dshwv-menu-btn-visible', over || menuOpen)
   quickChatBtn.classList.toggle('dshwv-chat-btn-visible', over || menuOpen)
@@ -2013,6 +2012,7 @@ connectUsageStream()
 
 function disposeWhaleWidget() {
   if (!window.__dshWhaleWidget) return
+  character.dispose()
   for (var timeoutId of ownedTimeouts) nativeClearTimeout(timeoutId)
   for (var intervalId of ownedIntervals) nativeClearInterval(intervalId)
   ownedTimeouts.clear()

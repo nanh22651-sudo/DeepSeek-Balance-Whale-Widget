@@ -1,6 +1,6 @@
 {
   "name": "dsh-whale-widget",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "DSH Web 小鲸鱼挂件：余额、分会话用量、峰谷价格与可自定义互动台词",
   "keywords": [
     "dsh",
@@ -20,7 +20,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "node --check lib/index.js && node --check lib/config.js && node --check lib/pricing.js && node --check lib/pricing-store.js && node --check lib/dialogues.js && node --check lib/dialogue-store.js && node --check lib/conversation-usage.js && node --check lib/http-security.js && node --check lib/usage-ledger.js && node --check client/bubble.js && node --check client/widget.js && node --check client/session-bridge.js",
+    "check": "node --check lib/index.js && node --check lib/config.js && node --check lib/pricing.js && node --check lib/pricing-store.js && node --check lib/dialogues.js && node --check lib/dialogue-store.js && node --check lib/conversation-usage.js && node --check lib/http-security.js && node --check lib/usage-ledger.js && node --check client/bubble.js && node --check client/character.js && node --check client/widget.js && node --check client/session-bridge.js",
     "test": "node --test --experimental-test-isolation=none tests/*.test.js",
     "test:ui": "playwright test"
   },
