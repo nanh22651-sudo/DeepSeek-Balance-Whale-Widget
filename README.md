@@ -43,6 +43,7 @@ dsh-whale-widget/
 ├── cordis.patch.yml      # 插件挂载声明
 ├── client/
 │   ├── widget.js         # 浏览器端挂件、样式与交互
+│   ├── bubble.js         # 余额、费用与台词的显示、切换和计时
 │   └── session-bridge.js # 从 DSH 客户端服务发布当前对话 ID
 ├── lib/
 │   ├── index.js          # 宿主入口与 Web 路由
@@ -329,6 +330,8 @@ curl http://127.0.0.1:3080/dsh-whale/dialogues.json
 npm run check
 npm test
 ```
+
+开发者可在仓库根目录运行 `npm ci`、`npx playwright install chromium`、`npm run test:ui`，验证挂件加载、聊天和计时。Windows 已安装 Edge 时，可在 Anaconda Prompt 中设置 `set WHALE_BROWSER_CHANNEL=msedge` 后直接运行界面测试。浏览器测试使用临时 DSH 数据目录和固定余额。CI 对 npm 打包后解压的插件运行相同测试。宿主按固定顺序合并两个客户端源文件，继续通过 `/dsh-whale/widget.js` 提供一份脚本。
 
 安全说明：余额、对话用量、实时事件和设置接口仅接受本机回环地址上的同源访问，以及指向本机回环 Host 的固定 Desktop 来源 `dsh-app://app`；不向第三方网页或其他自定义协议来源开放。设置写入会校验字段类型和范围。若明确通过反向代理或自定义域名使用，可把允许的完整 origin（多个值用逗号分隔）配置到 `DSH_WHALE_ALLOWED_ORIGINS`。
 

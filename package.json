@@ -20,7 +20,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "node --check lib/index.js && node --check lib/config.js && node --check lib/pricing.js && node --check lib/pricing-store.js && node --check lib/dialogues.js && node --check lib/dialogue-store.js && node --check lib/conversation-usage.js && node --check client/widget.js && node --check client/session-bridge.js",
+    "check": "node --check lib/index.js && node --check lib/config.js && node --check lib/pricing.js && node --check lib/pricing-store.js && node --check lib/dialogues.js && node --check lib/dialogue-store.js && node --check lib/conversation-usage.js && node --check lib/http-security.js && node --check lib/usage-ledger.js && node --check client/bubble.js && node --check client/widget.js && node --check client/session-bridge.js",
     "test": "node --test --experimental-test-isolation=none tests/*.test.js",
     "test:ui": "playwright test"
   },

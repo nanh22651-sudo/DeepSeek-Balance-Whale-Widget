@@ -11,7 +11,7 @@ test.afterAll(async () => { await host?.close() })
 async function openWidget(page, mode = 'web') {
   const balances = { ok: true, totalBalance: 12.34, currency: 'CNY', todayUsage: 0 }
   const sizes = { sound: false, balanceBubbleCloseMs: 2000, costBubbleCloseMs: 4000, dialogueBubbleCloseMs: 6000 }
-  const dialogue = { text: line, enabled: true, rarity: 'normal', category: 'daily', weight: 1 }
+  const dialogue = { id: 'fixture', text: line, enabled: true, rarity: 'normal', category: 'daily', weight: 1 }
   for (const [name, json] of Object.entries({
     balance: balances, size: sizes, dialogues: { ok: true, config: { dialogues: [dialogue] } },
   })) {
@@ -36,7 +36,7 @@ async function openWidget(page, mode = 'web') {
   await expect(page.locator(root)).toHaveCount(1)
   await expect(page.locator('.dshwv-text')).toContainText('12.34')
   await expect(page.locator('.dshwv-usage-sub').first()).toBeAttached()
-  await page.clock.pauseAt(new Date('2026-01-01T00:00:10Z'))
+  await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now()) + 1000))
 }
 
 for (const mode of ['web', 'desktop', 'both']) {
@@ -111,4 +111,23 @@ test('switching balance to chat gives dialogue a fresh six seconds', async ({ pa
   await page.clock.runFor(1000)
   await expect(page.locator(openBubble)).toContainText(line)
   await closesAfter(page, 5000)
+})
+
+test('duration controls and dialogue preview operate on the displayed bubble', async ({ page }) => {
+  await openWidget(page)
+  await page.locator('.dshwv-menu-btn').click({ force: true })
+  const menu = page.locator('.dshwv-menu')
+  for (const [label, seconds] of [['余额气泡时长', '2'], ['费用气泡时长', '4'], ['聊天台词时长', '6']]) {
+    const input = menu.locator('.dshwv-menu-row').filter({ hasText: label }).getByRole('spinbutton')
+    await expect(input).toHaveValue(seconds)
+    if (label === '聊天台词时长') await input.fill('0')
+  }
+  await expect(menu.getByRole('option', { name: '梁文峰谷' })).toHaveCount(0)
+  await menu.getByRole('button', { name: '管理台词' }).click()
+  const card = page.locator('.dshwv-dialogue-card').first()
+  await card.getByRole('textbox').fill('预览中的新台词')
+  await card.getByRole('button', { name: '预览', exact: true }).click()
+  await expect(page.locator(openBubble)).toContainText('预览中的新台词')
+  await page.clock.runFor(7000)
+  await expect(page.locator(openBubble)).toContainText('预览中的新台词')
 })

@@ -75,44 +75,6 @@ test('plugin registers its routes and injects the browser script', async () => {
   assert.match(String(res.body), /window\.__dshWhaleWidget/)
 })
 
-test('client module starts and disposes the widget for packaged Desktop pages', () => {
-  const source = fs.readFileSync(new URL('../client/session-bridge.js', import.meta.url), 'utf8')
-  assert.match(source, /WIDGET_SCRIPT_URL = '\/dsh-whale\/widget\.js'/)
-  assert.match(source, /ensureWidgetScript\(\)/)
-  assert.match(source, /document\.head\.appendChild\(script\)/)
-  assert.match(source, /window\.__dshWhaleWidgetDispose\(\)/)
-  assert.match(source, /dshWhaleOwned === 'true'/)
-})
-
-test('quick chat prepares dialogue before opening a closed bubble', async () => {
-  const ctx = createContext()
-  apply(ctx)
-  const res = responseRecorder()
-  await ctx.routes.get('/dsh-whale/widget.js')(request('GET'), res)
-  const source = String(res.body)
-  const match = /function showDialogueLines\([\s\S]*?\r?\n}\r?\nfunction applyBubbleLines/.exec(source)
-  assert.ok(match)
-  assert.doesNotMatch(match[0], /showBubble\(/)
-  assert.ok(match[0].indexOf('applyBubbleLines(bubbleRandomLines)') < match[0].indexOf("bubbleBox.classList.add('dshwv-bubble-open')"))
-  assert.match(source, /pricingAction\('预览'/)
-})
-
-test('widget exposes independent bubble durations and removes the peak wording selector', async () => {
-  const ctx = createContext()
-  apply(ctx)
-  const res = responseRecorder()
-  await ctx.routes.get('/dsh-whale/widget.js')(request('GET'), res)
-  const source = String(res.body)
-  assert.match(source, /余额气泡时长/)
-  assert.match(source, /费用气泡时长/)
-  assert.match(source, /聊天台词时长/)
-  assert.match(source, /setTimeout\(hideBubble, balanceBubbleCloseMs\)/)
-  assert.match(source, /setTimeout\(hideCostBubble, costBubbleCloseMs\)/)
-  assert.match(source, /showDialogueLines\(pickDialogueLines\(\), dialogueBubbleCloseMs\)/)
-  assert.doesNotMatch(source, /peakSelect|peakMode|梁文峰谷|强强/)
-  assert.match(source, /window\.__dshWhaleWidgetDispose = disposeWhaleWidget/)
-  assert.match(source, /document\.removeEventListener\('pointerdown', onDocPointerDown, true\)/)
-})
 
 test('pricing route is same-origin protected and exposes editor metadata', async () => {
   const ctx = createContext()

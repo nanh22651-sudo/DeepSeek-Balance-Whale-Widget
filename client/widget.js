@@ -167,7 +167,7 @@ quickChatBtn.className = 'dshwv-chat-btn'
 quickChatBtn.title = '和鲸鱼娘聊天'
 quickChatBtn.setAttribute('aria-label', '和鲸鱼娘聊天')
 quickChatBtn.textContent = '💬'
-quickChatBtn.addEventListener('click', function (e) { e.stopPropagation(); showDialogue(true) })
+quickChatBtn.addEventListener('click', function (e) { e.stopPropagation(); showDialogue() })
 
 var menuBox = document.createElement('div')
 menuBox.className = 'dshwv-menu'
@@ -326,7 +326,7 @@ var chatButton = document.createElement('button')
 chatButton.type = 'button'
 chatButton.className = 'dshwv-action'
 chatButton.textContent = '和鲸鱼娘聊天'
-chatButton.addEventListener('click', function () { closeMenu(); showDialogue(true) })
+chatButton.addEventListener('click', function () { closeMenu(); showDialogue() })
 rowChat.appendChild(chatButton)
 var manageDialogueButton = document.createElement('button')
 manageDialogueButton.type = 'button'
@@ -527,61 +527,14 @@ pricingDialog.appendChild(dialoguePane)
 pricingModal.addEventListener('click', function (e) { if (e.target === pricingModal) closePricingEditor() })
 document.body.appendChild(pricingModal)
 
-var textBox = document.createElement('div')
-textBox.className = 'dshwv-text'
-var labelEl = document.createElement('div')
-labelEl.className = 'dshwv-label'
-labelEl.textContent = 'DeepSeek 余额'
-var amountEl = document.createElement('div')
-amountEl.className = 'dshwv-amount'
-var hintEl = document.createElement('div')
-hintEl.className = 'dshwv-hint'
-textBox.appendChild(labelEl)
-textBox.appendChild(amountEl)
-textBox.appendChild(hintEl)
-
-var bubbleBox = document.createElement('div')
-bubbleBox.className = 'dshwv-bubble'
-bubbleBox.innerHTML = '<svg viewBox="0 0 1026 700" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' +
-  '<path class="dshwv-bshape" fill="#FFFFFF" stroke="#203170" stroke-width="18" stroke-linejoin="round" stroke-linecap="round" d="M 827 248 A 373 232 0 1 0 81 246 A 373 232 0 0 0 301 465 A 57 32 10 0 0 413 484 A 373 232 0 0 0 827 248 Z"/>' +
-  '<ellipse class="dshwv-b1" cx="352" cy="561" rx="37.5" ry="26" fill="#FFFFFF" stroke="#203170" stroke-width="18"/>' +
-  '<ellipse class="dshwv-b2" cx="442" cy="646" rx="24.5" ry="18" fill="#FFFFFF" stroke="#203170" stroke-width="18"/>' +
-  '</svg>'
-var gifEl = document.createElement('img')
-gifEl.className = 'dshwv-gif'
-gifEl.src = GIF_URL
-gifEl.alt = ''
-gifEl.draggable = false
-bubbleBox.appendChild(gifEl)
-var gifFailed = false
-gifEl.onerror = function () { gifFailed = true }
-bubbleBox.appendChild(textBox)
-bubbleBox.addEventListener('click', function (e) {
-  e.stopPropagation()
-  if (!bubbleShown) return
-  if (costBubbleActive) {
-    // 消耗金额泡泡：点击关闭（确认）
-    hideCostBubble()
-    return
-  }
-  if (bubbleRandomActive) {
-    // 再次点击：关闭
-    hideBubble()
-  } else {
-    // 首次点击：切到随机台词段，并重置自动关闭计时——
-    // 保证第二段台词有完整停留时间（否则第 4 秒点击只看到 0.5 秒）
-    bubbleRandomActive = true
-    bubbleRandomLines = pickDialogueLines()
-    swapBubbleContent(function () { applyBubbleLines(bubbleRandomLines) })
-    if (bubbleTimer) { clearTimeout(bubbleTimer); bubbleTimer = null }
-    if (dialogueBubbleCloseMs > 0) bubbleTimer = setTimeout(hideBubble, dialogueBubbleCloseMs)
-  }
+var bubble = createWhaleBubble({
+  gifUrl: GIF_URL, renderBalance: render, requestDialogue: showDialogue, setTimeout, clearTimeout
 })
 
 var body = document.createElement('div')
 body.className = 'dshwv-body'
 body.appendChild(img)
-body.appendChild(bubbleBox)
+body.appendChild(bubble.element)
 root.appendChild(body)
 root.appendChild(quickChatBtn)
 root.appendChild(menuBtn)
@@ -621,12 +574,6 @@ var animDelayTimer = null
 var drag = null
 var shown = null
 var animId = null
-var bubbleShown = false
-var bubbleTimer = null
-var bubbleRandomActive = false
-var bubbleRandomLines = null
-var BUBBLE_STYLE_CLASS = { A: 'dshwv-label', B: 'dshwv-amount', P: 'dshwv-period', C: 'dshwv-hint' }
-function pickOne(arr) { return arr[Math.floor(Math.random() * arr.length)] }
 function singleCenter(style, text, color, wrap) { return [null, { t: text, s: style, c: color || '', w: !!wrap }, null] }
 var dialogueConfig = {
   version: 1,
@@ -694,212 +641,30 @@ function pickDialogueLines() {
   var selected = weightedDialogue(eligible)
   return singleCenter('A', selected ? interpolateDialogue(selected.text) : '今天暂时没有可以说的台词。', '', true)
 }
-function showDialogue(explicit) {
-  showDialogueLines(pickDialogueLines(), dialogueBubbleCloseMs)
+function showDialogue() {
+  if (bubbleOn) bubble.showDialogue(pickDialogueLines(), dialogueBubbleCloseMs)
 }
 function showDialogueText(text) {
-  showDialogueLines(singleCenter('A', text, '', true), dialogueBubbleCloseMs)
-}
-function showDialogueLines(lines, duration) {
-  if (!bubbleOn) return
-  if (costBubbleActive) hideCostBubble()
-  var wasOpen = bubbleShown && bubbleBox.classList.contains('dshwv-bubble-open')
-  if (bubbleTimer) { clearTimeout(bubbleTimer); bubbleTimer = null }
-  if (bubbleSwapTimer) { clearTimeout(bubbleSwapTimer); bubbleSwapTimer = null }
-  if (hintFadeTimer) { clearTimeout(hintFadeTimer); hintFadeTimer = null }
-  if (gifFadeTimer) { clearTimeout(gifFadeTimer); gifFadeTimer = null }
-  bubbleShown = true
-  bubbleRandomActive = true
-  bubbleRandomLines = lines
-  lastHintText = null
-  if (wasOpen) {
-    swapBubbleContent(function () { applyBubbleLines(bubbleRandomLines) })
-  } else {
-    // 快捷聊天首次打开时先准备台词，再播放气泡开启动画，避免余额内容闪现。
-    textBox.style.transition = ''
-    textBox.style.opacity = ''
-    applyBubbleLines(bubbleRandomLines)
-    bubbleBox.classList.add('dshwv-bubble-open')
-  }
-  if (duration > 0) bubbleTimer = setTimeout(hideBubble, duration)
-}
-function applyBubbleLines(lines) {
-  if (lines && lines.gif) {
-    // gif 台词组：只显示 gif，隐藏三行文字（display 必须显式覆盖 CSS 的 none）
-    if (gifFailed) {
-      // gif 加载失败/路由缺失：降级为文字台词，避免空白白色气泡
-      lines = singleCenter('A', pickOne(['gif 加载失败了...', '今天没有动图给你看~', '呜呜 动图不见了...']), '', true)
-    } else {
-      if (gifFadeTimer) { clearTimeout(gifFadeTimer); gifFadeTimer = null }
-      gifEl.style.display = 'block'
-      gifEl.style.opacity = ''
-      labelEl.style.display = 'none'
-      amountEl.style.display = 'none'
-      hintEl.style.display = 'none'
-      return
-    }
-  }
-  if (gifFadeTimer) { clearTimeout(gifFadeTimer); gifFadeTimer = null }
-  gifEl.style.display = 'none'
-  gifEl.style.opacity = ''
-  var els = [labelEl, amountEl, hintEl]
-  for (var i = 0; i < 3; i++) {
-    var el = els[i]
-    var ln = lines && lines[i]
-    if (ln) {
-      el.style.display = ''
-      el.className = (BUBBLE_STYLE_CLASS[ln.s] || 'dshwv-label') + (ln.w ? ' dshwv-wrap' : '')
-      el.textContent = ln.t
-      el.style.color = ln.c || ''
-    } else {
-      el.style.display = 'none'
-      el.textContent = ''
-      el.style.color = ''
-    }
-  }
-}
-var bubbleSwapTimer = null
-var hintFadeTimer = null
-var gifFadeTimer = null
-var lastHintText = null
-function setHint(text) {
-  // 首次/恢复（lastHintText===null）时直接写文本，不做淡出淡入——否则
-  // 气泡打开或按压重开时会先淡出再淡入，造成「消失一下又出现」。
-  // 只有气泡打开期间的内容变化（加载中→今日已用）才走动画。
-  if (text === lastHintText) return
-  var first = lastHintText === null
-  lastHintText = text
-  if (first || !bubbleShown) {
-    hintEl.textContent = text
-    return
-  }
-  hintEl.style.transition = 'opacity .18s ease'
-  hintEl.style.opacity = '0'
-  hintFadeTimer = setTimeout(function () {
-    hintFadeTimer = null
-    hintEl.textContent = text
-    hintEl.style.opacity = '1'
-    setTimeout(function () {
-      hintEl.style.transition = ''
-      hintEl.style.opacity = ''
-    }, 220)
-  }, 190)
-}
-function swapBubbleContent(applyFn) {
-  if (bubbleSwapTimer) { clearTimeout(bubbleSwapTimer); bubbleSwapTimer = null }
-  textBox.style.transition = 'opacity .18s ease'
-  textBox.style.opacity = '0'
-  bubbleSwapTimer = setTimeout(function () {
-    bubbleSwapTimer = null
-    applyFn()
-    textBox.style.opacity = '1'
-    setTimeout(function () {
-      textBox.style.transition = ''
-      textBox.style.opacity = ''
-    }, 220)
-  }, 190)
-}
-function restoreBubbleLines() {
-  if (bubbleSwapTimer) { clearTimeout(bubbleSwapTimer); bubbleSwapTimer = null }
-  if (hintFadeTimer) { clearTimeout(hintFadeTimer); hintFadeTimer = null }
-  if (gifFadeTimer) { clearTimeout(gifFadeTimer); gifFadeTimer = null }
-  lastHintText = null
-  textBox.style.transition = ''
-  textBox.style.opacity = ''
-  gifEl.style.display = 'none'
-  gifEl.style.opacity = ''
-  labelEl.style.display = ''
-  labelEl.className = 'dshwv-label'
-  labelEl.textContent = 'DeepSeek 余额'
-  labelEl.style.color = ''
-  amountEl.style.display = ''
-  amountEl.className = 'dshwv-amount'
-  amountEl.style.color = ''
-  hintEl.style.display = ''
-  hintEl.className = 'dshwv-hint'
-  hintEl.style.color = ''
-  render()
+  if (bubbleOn) bubble.showDialogue(singleCenter('A', text, '', true), dialogueBubbleCloseMs)
 }
 function showBubble() {
-  if (!bubbleOn) return
-  // 消耗金额泡泡显示期间，余额变动不再弹出普通泡泡
-  if (costBubbleActive) return
-  if (bubbleTimer) { clearTimeout(bubbleTimer); bubbleTimer = null }
-  if (gifFadeTimer) { clearTimeout(gifFadeTimer); gifFadeTimer = null }
-  bubbleShown = true
-  bubbleRandomActive = false
-  restoreBubbleLines()
-  bubbleBox.classList.add('dshwv-bubble-open')
-  if (balanceBubbleCloseMs > 0) bubbleTimer = setTimeout(hideBubble, balanceBubbleCloseMs)
+  if (bubbleOn) bubble.showBalance(balanceBubbleCloseMs)
 }
-function hideBubble() {
-  if (bubbleTimer) { clearTimeout(bubbleTimer); bubbleTimer = null }
-  if (bubbleSwapTimer) { clearTimeout(bubbleSwapTimer); bubbleSwapTimer = null }
-  if (hintFadeTimer) { clearTimeout(hintFadeTimer); hintFadeTimer = null }
-  textBox.style.transition = ''
-  textBox.style.opacity = ''
-  hintEl.style.transition = ''
-  hintEl.style.opacity = ''
-  bubbleRandomActive = false
-  bubbleRandomLines = null
-  bubbleShown = false
-  // 只销毁 gif 显示；三行文字保持现状让气泡自然淡出——不能在关闭瞬间
-  // 恢复成余额内容（否则随机台词界面会闪现余额）。文字恢复交给下次
-  // showBubble() 的 restoreBubbleLines()（那时气泡隐藏，恢复过程不可见）。
-  bubbleBox.classList.remove('dshwv-bubble-open')
-  // gif 靠 CSS opacity 过渡淡出；display:none 会跳过过渡，须等淡出完成再隐藏
-  gifFadeTimer = setTimeout(function () {
-    gifFadeTimer = null
-    gifEl.style.display = 'none'
-  }, 240)
-}
-
-// —— 每轮对话消耗金额泡泡 ——
-var costBubbleTimer = null
 function showCostBubble(amount, tokens, reasoningTokens, unknownModels) {
   if (!bubbleOn || !turnCostOn) return
-  if (costBubbleTimer) { clearTimeout(costBubbleTimer); costBubbleTimer = null }
-  if (bubbleTimer) { clearTimeout(bubbleTimer); bubbleTimer = null }
-  if (gifFadeTimer) { clearTimeout(gifFadeTimer); gifFadeTimer = null }
-  // 取消进行中的余额数字滚动与延迟计时器，避免竞态覆盖成本金额
-  if (animId) { cancelAnimationFrame(animId); animId = null }
+  if (animId !== null) { cancelAnimationFrame(animId); animId = null }
   if (animDelayTimer) { clearTimeout(animDelayTimer); animDelayTimer = null }
   if (settleTimer) { clearTimeout(settleTimer); settleTimer = null }
-  costBubbleActive = true
-  bubbleRandomActive = false
-  bubbleShown = true
-  lastHintText = null
-  // 样式：第一行 A（标签），第二行 B（红色金额），居中两行
-  gifEl.style.display = 'none'
-  gifEl.style.opacity = ''
-  labelEl.style.display = ''
-  labelEl.className = 'dshwv-label'
-  labelEl.textContent = 'DSH 最近一轮费用:'
-  labelEl.style.color = ''
-  amountEl.style.display = ''
-  amountEl.className = 'dshwv-amount'
-  var priced = typeof amount === 'number' && isFinite(amount)
-  amountEl.textContent = priced ? '¥ ' + Number(amount).toFixed(2) : '无法估价'
-  amountEl.style.color = priced ? '#e0433f' : '#d08020'
-  hintEl.style.display = ''
-  if (priced) {
-    hintEl.textContent = fmtTokens(tokens) + (reasoningTokens > 0 ? ' · 含推理 ' + fmtTokens(reasoningTokens) : '')
-  } else {
-    var models = Array.isArray(unknownModels) ? unknownModels.join(', ') : ''
-    hintEl.textContent = models ? '未配置价格: ' + models : '该模型尚未配置价格'
-  }
-  hintEl.style.color = ''
-  textBox.style.transition = ''
-  textBox.style.opacity = ''
-  bubbleBox.classList.add('dshwv-bubble-open')
-  if (costBubbleCloseMs > 0) {
-    costBubbleTimer = setTimeout(hideCostBubble, costBubbleCloseMs)
-  }
-}
-function hideCostBubble() {
-  if (costBubbleTimer) { clearTimeout(costBubbleTimer); costBubbleTimer = null }
-  costBubbleActive = false
-  hideBubble()
+  const priced = typeof amount === 'number' && Number.isFinite(amount)
+  const models = Array.isArray(unknownModels) ? unknownModels.join(', ') : ''
+  const hint = priced
+    ? fmtTokens(tokens) + (reasoningTokens > 0 ? ' · 含推理 ' + fmtTokens(reasoningTokens) : '')
+    : (models ? '未配置价格: ' + models : '该模型尚未配置价格')
+  bubble.showCost([
+    { s: 'A', t: 'DSH 最近一轮费用:' },
+    { s: 'B', t: priced ? '¥ ' + amount.toFixed(2) : '无法估价', c: priced ? '#e0433f' : '#d08020' },
+    { s: 'C', t: hint },
+  ], costBubbleCloseMs)
 }
 
 function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v) }
@@ -1414,39 +1179,39 @@ function exportDialogues() {
 }
 function animateAmount(from, to, currency, duration) {
   // 消耗金额泡泡显示期间，余额数字滚动不触碰金额行
-  if (costBubbleActive) return
+  if (!bubble.acceptsBalance()) { shown = to; return }
   if (animId) cancelAnimationFrame(animId)
   if (from === null || !isFinite(from)) from = to
   if (from === to) {
     shown = to
-    amountEl.textContent = fmt(to, currency)
+    bubble.animateBalance(fmt(to, currency))
     return
   }
   var startTime = null
   function step(ts) {
     // 帧级保护：成本泡泡出现后立即停止滚动，避免后续帧把余额写进金额行
-    if (costBubbleActive) {
+    if (!bubble.acceptsBalance()) {
       animId = null
+      shown = to
       return
     }
     if (startTime === null) startTime = ts
     var t = Math.min(1, (ts - startTime) / duration)
     var eased = 1 - Math.pow(1 - t, 3)
     var val = from + (to - from) * eased
-    amountEl.textContent = fmt(val, currency)
+    bubble.animateBalance(fmt(val, currency))
     if (t < 1) {
       animId = requestAnimationFrame(step)
     } else {
       animId = null
       shown = to
-      amountEl.textContent = fmt(to, currency)
+      bubble.animateBalance(fmt(to, currency))
     }
   }
   animId = requestAnimationFrame(step)
 }
 function render() {
-  // 消耗金额泡泡显示期间，余额渲染不覆盖其内容（金额行/标题行/提示行）
-  if (costBubbleActive) return
+  if (!bubble.acceptsBalance()) return
   var amount, hint
   if (state.status === 'error') {
     amount = shown !== null ? fmt(shown, state.currency) : '--'
@@ -1458,12 +1223,7 @@ function render() {
     amount = shown !== null ? fmt(shown, state.currency) : fmt(state.balance, state.currency)
     hint = usageLabel() + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.currency) : '--')
   }
-  amountEl.textContent = amount
-  if (bubbleRandomActive && bubbleRandomLines) {
-    applyBubbleLines(bubbleRandomLines)
-  } else {
-    setHint(hint)
-  }
+  bubble.updateBalance(amount, hint)
 }
 function express() {
   root.style.right = 'auto'
@@ -1580,7 +1340,6 @@ var turnCostOn = true
 var balanceBubbleCloseMs = 5000
 var costBubbleCloseMs = 5000
 var dialogueBubbleCloseMs = 5000
-var costBubbleActive = false
 var scrollGapOn = false
 var scrollGapPx = 17
 function saveConfig() {
@@ -1622,15 +1381,14 @@ function setBubbleOn(v) {
   bubbleOn = !!v
   bubbleToggle.checked = bubbleOn
   saveConfig()
-  // 必须走 hideCostBubble：残留的 costBubbleActive 会让 render()/showBubble() 永久早退
-  if (!bubbleOn) hideCostBubble()
+  if (!bubbleOn) bubble.close()
 }
 function setTurnCostOn(v) {
   turnCostOn = !!v
   turnCostToggle.checked = turnCostOn
   costBubbleCloseInput.disabled = !turnCostOn
   saveConfig()
-  if (!turnCostOn) hideCostBubble()
+  if (!turnCostOn) bubble.close()
 }
 function durationSeconds(v) {
   var n = Math.max(0, Math.round(Number(v) || 0))

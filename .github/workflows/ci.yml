@@ -17,7 +17,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.x'
+      - name: Install locked development dependencies
+        run: npm ci --ignore-scripts
       - name: Check syntax
         run: npm run check
       - name: Run tests
         run: npm test
+      - name: Install Chromium
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Test the installable package in Chromium
+        run: |
+          bundle=$(npm pack --silent --pack-destination "$RUNNER_TEMP")
+          mkdir "$RUNNER_TEMP/whale-unpacked"
+          tar -xzf "$RUNNER_TEMP/$bundle" -C "$RUNNER_TEMP/whale-unpacked"
+          WHALE_TEST_PACKAGE="$RUNNER_TEMP/whale-unpacked/package" npm run test:ui
